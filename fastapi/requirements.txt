@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-dotenv
+motor
+pydantic
+python-jose
+passlib
+bcrypt
+python-multipart
+email-validator
+pathlib
+groq
+scipy
+librosa==0.10.1
+soundfile==0.12.1
+numpy
