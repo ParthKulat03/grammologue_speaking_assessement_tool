@@ -166,11 +166,29 @@ class FeedbackProcessor:
                 model="meta-llama/llama-4-scout-17b-16e-instruct",
                 temperature=0.1,
             )
-            
-            analysis = response.choices[0].message.content
+
+            # Defensive extraction of the model content (handle different response shapes)
+            analysis = None
+            try:
+                # typical structure
+                if hasattr(response, "choices") and response.choices:
+                    choice0 = response.choices[0]
+                    # support .message.content or .text depending on SDK
+                    analysis = getattr(getattr(choice0, "message", None), "content", None) or getattr(choice0, "text", None)
+                # fallback to string representation
+                if not analysis:
+                    analysis = str(response)
+            except Exception:
+                analysis = str(response)
+
+            if not analysis or not str(analysis).strip():
+                logger.warning(f"Empty analysis from LLM. Raw response (truncated): {str(response)[:1000]}")
+                return {"error_count": 0, "errors": []}
+
             return self._parse_grammar_response(analysis)
+
         except Exception as e:
-            print(f"Error in analyze_grammar: {str(e)}")
+            logger.exception(f"Error in analyze_grammar: {str(e)}")
             return {
                 "error_count": 0,
                 "errors": []
@@ -303,16 +321,53 @@ class FeedbackProcessor:
     def _parse_grammar_response(self, response: str) -> Dict:
         """
         Parse the LLM response for grammar analysis.
+        Handles:
+        - dict responses (already parsed)
+        - plain JSON string
+        - noisy text containing a JSON object (extract between first '{' and last '}')
+        - fallback to a safe default if parsing fails
         """
         try:
-            # Parse the JSON response
-            data = json.loads(response)
-            return {
-                "error_count": data.get("error_count", 0),
-                "errors": data.get("errors", [])
-            }
+            # If already parsed
+            if isinstance(response, dict):
+                return {
+                    "error_count": response.get("error_count", 0),
+                    "errors": response.get("errors", [])
+                }
+
+            # Ensure string
+            resp_text = str(response).strip()
+            if not resp_text:
+                logger.warning("Received empty grammar response to parse.")
+                return {"error_count": 0, "errors": []}
+
+            # First attempt: direct JSON parse
+            try:
+                data = json.loads(resp_text)
+                return {
+                    "error_count": data.get("error_count", 0),
+                    "errors": data.get("errors", [])
+                }
+            except json.JSONDecodeError:
+                # Try to extract a JSON object if the model wrapped it in text
+                start = resp_text.find("{")
+                end = resp_text.rfind("}")
+                if start != -1 and end != -1 and end > start:
+                    possible_json = resp_text[start:end+1]
+                    try:
+                        data = json.loads(possible_json)
+                        return {
+                            "error_count": data.get("error_count", 0),
+                            "errors": data.get("errors", [])
+                        }
+                    except Exception as ex_inner:
+                        logger.warning(f"Failed to parse extracted JSON substring: {ex_inner}. Substring (truncated): {possible_json[:500]}")
+                # No valid JSON found
+                logger.warning(f"Grammar response is not valid JSON. Response (truncated): {resp_text[:500]}")
+                return {"error_count": 0, "errors": []}
+
         except Exception as e:
-            print(f"Error parsing grammar response: {str(e)}")
+            logger.exception(f"Error parsing grammar response: {e}")
             return {
                 "error_count": 0,
                 "errors": []
