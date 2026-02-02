@@ -1,51 +1,24 @@
+# Grammologue – Speaking Assessment Tool
 
-steps:
+## Description
+A full-stack speaking assessment platform that evaluates grammar, fluency,
+and pronunciation using AI-based feedback.
 
-check .env files
+## Tech Stack
+- Frontend: React, Tailwind CSS
+- Backend: Node.js, Express
+- AI Service: FastAPI, Python
+- Database: MongoDB
+- Authentication: Firebase
 
-for starting from start :
-npm i (in root folder)
+## Features
+- User authentication
+- Speaking assessment & recording
+- AI-based feedback
+- Performance analytics dashboard
 
-and then in the root dir:
-npm run dev
-
-these commands for fastAPi configuration
-
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-
-cd fastapi
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
-
-come to home dir and continue with "npm run dev"
-
-SRS:
-
-1. firbase login
-2. fastapi
-
----
-
-home page:
-
-home
-assesment
-
-footer
-
----
-
-assesment page:
-
----
-
-side bar:
-
-overview
-
-report
-
-profile
-
-logout
+## Setup
+1. Clone the repo
+2. Install dependencies
+3. Add environment variables
+4. Run frontend & backend
