@@ -7,38 +7,53 @@ import json
 import logging
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class IdealAnswerGenerator:
     def __init__(self):
         self.client = Groq(
-            api_key="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",
+            api_key="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",
         )
         self.model = "meta-llama/llama-4-scout-17b-16e-instruct"
 
+    @staticmethod
     def parse_llm_response(response: str) -> Dict:
-        """Parse and validate LLM response with unicode support."""
+        """Parse and validate LLM response with unicode support and JSON extraction."""
         # Normalize unicode characters
         normalized_response = unicodedata.normalize('NFKC', response)
         
         try:
-            # Parse JSON with ensure_ascii=False to handle non-ASCII characters
+            # First attempt: direct JSON parse
             parsed = json.loads(normalized_response)
             
             # Validate required fields
-            required_fields = ['ideal_answer', 'user_strengths', 
-                            'areas_for_improvement', 'improvement_suggestions']
-            
+            required_fields = ['ideal_answer', 'user_strengths', 'areas_for_improvement']
             if not all(field in parsed for field in required_fields):
                 raise ValueError("Missing required fields in response")
-                
+            
             return parsed
             
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
+            # Second attempt: extract JSON if wrapped in text
+            start = normalized_response.find("{")
+            end = normalized_response.rfind("}")
+            
+            if start != -1 and end != -1 and end > start:
+                possible_json = normalized_response[start:end+1]
+                try:
+                    parsed = json.loads(possible_json)
+                    required_fields = ['ideal_answer', 'user_strengths', 'areas_for_improvement']
+                    if all(field in parsed for field in required_fields):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+            
+            # If all parsing fails, raise error with details
+            logger.error(f"Failed to parse LLM response: {normalized_response[:500]}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to parse response: {str(e)}"
+                detail=f"Failed to parse response as valid JSON"
             )
-
 
     async def generate_ideal_answer(self, question: str, user_answer: str) -> Dict:
         """
@@ -49,32 +64,31 @@ class IdealAnswerGenerator:
             user_answer (str): The user's answer to analyze
             
         Returns:
-            Dict: Contains grammatically correct answer and analysis of user's answer
+            Dict: Contains parsed ideal answer analysis
         """
         try:
             prompt = f"""
             Question: {question}
-            User's Answer: {user_answer}""" + """
+            User's Answer: {user_answer}
             
             Please provide:
-            1. A corrected gramatical answer to this question
+            1. A corrected grammatical answer to this question
             2. Analysis of what the user did well
             3. Areas where the user's answer could be improved
             
             Format the response ONLY as a JSON with the following structure. THIS STRUCTURE SHOULD BE MAINTAINED STRICTLY:
-            {
-                "ideal_answer": "corrected gramatical answer with correct langauge as question",
-                "user_strengths": "what the user did well with correct langauge as question",
-                "areas_for_improvement": "where the answer could be improved with correct langauge as question",
-            }
-
+            {{
+                "ideal_answer": "corrected grammatical answer with correct language as question",
+                "user_strengths": "what the user did well with correct language as question",
+                "areas_for_improvement": "where the answer could be improved with correct language as question"
+            }}
             """
 
             chat_completion = self.client.chat.completions.create(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a grammatical assessment expert. Provide analysis only in JSON format.",
+                        "content": "You are a grammatical assessment expert. Provide analysis only in JSON format with no additional text.",
                     },
                     {
                         "role": "user",
@@ -86,23 +100,22 @@ class IdealAnswerGenerator:
             )            
     
             response = chat_completion.choices[0].message.content
-
-            logging.info(f"LLM response: {response}")
+            logger.info(f"LLM raw response: {response[:200]}")
             
-            # Add JSON parsing with error handling
-            try:
-                
-                return {
-                    "status": "success",
-                    "data": response
-                }
-            except json.JSONDecodeError:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to parse LLM response as JSON"
-                )
+            # Parse JSON response (handles wrapped responses too)
+            parsed_data = self.parse_llm_response(response)
+            
+            logger.info(f"Parsed ideal answer successfully")
+            
+            return {
+                "status": "success",
+                "data": parsed_data  # ✅ Return parsed dict, not string
+            }
 
+        except HTTPException:
+            raise
         except Exception as e:
+            logger.error(f"Error generating ideal answer: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Failed to generate ideal answer: {str(e)}"

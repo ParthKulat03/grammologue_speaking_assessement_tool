@@ -54,18 +54,29 @@ const FeedbackPage = () => {
       setLoadingIdealAnswer(prev => ({ ...prev, [index]: true }));
       const result = await getIdealAnswer(question, answer);
       
-      // Parse response data, handling both string and object formats
+      // Handle response data - it may be already parsed or a string
       let parsedData;
       try {
-        console.log("Ideal answer response:", result.data);
-        parsedData = JSON.parse(result.data);
+        console.log("Ideal answer API response:", result);
+        
+        // Check if data is already an object (parsed) or a string (needs parsing)
+        if (typeof result.data === 'string') {
+          parsedData = JSON.parse(result.data);
+        } else if (typeof result.data === 'object' && result.data !== null) {
+          // ✅ Data is already parsed
+          parsedData = result.data;
+        } else {
+          throw new Error("Invalid data format");
+        }
+
+        console.log("Parsed ideal answer data:", parsedData);
 
       } catch (e) {
+        console.error("Error parsing ideal answer response:", e);
         parsedData = {
-          ideal_answer: 'Error parsing response try again...',
-          user_strengths: 'Unable to analyze try again...',
-          areas_for_improvement: 'Unable to analyze try again...',
-          improvement_suggestions: 'Unable to analyze try again...'
+          ideal_answer: 'Error parsing response. Please try again...',
+          user_strengths: 'Unable to analyze. Please try again...',
+          areas_for_improvement: 'Unable to analyze. Please try again...'
         };
       }
 
@@ -80,8 +91,7 @@ const FeedbackPage = () => {
         [index]: {
           ideal_answer: 'Failed to get ideal answer',
           user_strengths: 'Error occurred',
-          areas_for_improvement: 'Error occurred',
-          improvement_suggestions: 'Please try again later'
+          areas_for_improvement: 'Error occurred'
         }
       }));
     } finally {
@@ -117,7 +127,8 @@ const FeedbackPage = () => {
       const assessmentId = location.pathname.split('/')[3];
       await deleteAssessment(assessmentId);
       alert("Assessment deleted successfully!");
-      navigate('/dashboard/reports'); 
+      // navigate('/dashboard/reports'); // commented out - Reports hidden/removed from frontend
+      navigate('/dashboard'); // redirect to dashboard instead
     } catch (error) {
       console.error("Error deleting assessment:", error);
       alert(`Failed to delete assessment: ${error.message}`);
@@ -229,7 +240,37 @@ const FeedbackPage = () => {
   // Calculate performance metrics using utility functions
   const totalQuestions = assessmentData.questions.length;
   const overallStats = calculateOverallStats(assessmentData.feedback, totalQuestions);
-  const performanceScores = calculatePerformanceScores(overallStats, totalQuestions);
+
+  // Get random pronunciation score from backend for each question and average it
+  const getPronunciationScores = () => {
+    if (!assessmentData.feedback) return 0;
+    const scores = assessmentData.feedback
+      .map(fb => fb?.pronunciation?.pronunciation_score)
+      .filter(score => typeof score === 'number');
+    if (scores.length === 0) return 0;
+    // If you want average:
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    // If you want to show all scores, use scores array
+  };
+  const pronunciationScore = getPronunciationScores();
+
+  // Get pause score from backend for each question and average it
+  const getPauseScores = () => {
+    if (!assessmentData.feedback) return 0;
+    const scores = assessmentData.feedback
+      .map(fb => fb?.pauses?.pause_score)
+      .filter(score => typeof score === 'number');
+    if (scores.length === 0) return 0;
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  };
+  const pauseScore = getPauseScores();
+
+  // Use pronunciationScore and pauseScore in performanceScores
+  const performanceScores = {
+    ...calculatePerformanceScores(overallStats, totalQuestions),
+    pronunciationPerformance: pronunciationScore,
+    pausePerformance: pauseScore
+  };
   const overallScore = calculateOverallScore(performanceScores);
   console.log("Overall stats:", overallScore);
 
@@ -255,15 +296,15 @@ const FeedbackPage = () => {
         >
           Assessment Feedback
         </motion.h1>
-        
+
         <OverallPerformance
           overallScore={overallScore}
           overallStats={overallStats}
-          grammarPerformance={grammarPerformance}
-          pronunciationPerformance={pronunciationPerformance}
-          fluencyPerformance={fluencyPerformance}
-          correctnessPerformance={correctnessPerformance}
-          pausePerformance={pausePerformance}
+          grammarPerformance={performanceScores.grammarPerformance}
+          pronunciationPerformance={pronunciationScore}
+          fluencyPerformance={performanceScores.fluencyPerformance}
+          correctnessPerformance={performanceScores.correctnessPerformance}
+          pausePerformance={pauseScore}
           showDetailedFeedback={showDetailedFeedback}
           setShowDetailedFeedback={setShowDetailedFeedback}
         />
@@ -327,7 +368,7 @@ const FeedbackPage = () => {
           </motion.button>
         ) : (
           <>
-            <motion.button 
+            {/* <motion.button 
               whileHover={{ scale: 1.02, boxShadow: '0 4px 15px rgba(16, 185, 129, 0.25)' }}
               whileTap={{ scale: 0.98 }}
               onClick={handleSaveAssessment}
@@ -345,7 +386,7 @@ const FeedbackPage = () => {
               ) : (
                 'Save Assessment'
               )}
-            </motion.button>
+            </motion.button> */}
 
             {uploadProgress > 0 && uploadProgress < 100 && (
               <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5">

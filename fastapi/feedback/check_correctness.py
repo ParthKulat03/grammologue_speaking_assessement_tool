@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 client = Groq(
-    api_key="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",
+    api_key="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",
 )
 
 def check_answer_correctness(question: str, answer: str) -> Dict:

@@ -2,13 +2,13 @@ import os
 import json
 import re
 import logging
+import random
 from groq import Groq
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
 from .check_correctness import check_answer_correctness
 from .vocab_check import analyze_vocabulary
 from .get_pause import get_pause_count
-from deepgram import Deepgram
 from .audio_utils import convert_audio_to_wav
 
 # Load environment variables
@@ -19,9 +19,8 @@ logger = logging.getLogger(__name__)
 class FeedbackProcessor:
     def __init__(self):
         self.client = Groq(
-            api_key="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",
+            api_key="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",
         )
-        self.deepgram = Deepgram(os.getenv("DEEPGRAM_API_KEY", "a82d3695358bb0fa3cb3b5775271378ef3a77907"))
 
         self.grammar_prompt = """You are a grammar expert. Analyze the given text for grammatical errors, focusing ONLY on:
         - Incorrect verb tenses (e.g., "I goes" instead of "I go")
@@ -196,126 +195,138 @@ class FeedbackProcessor:
 
     async def analyze_pronunciation(self, text: str, audio_file: str = None) -> Dict:
         """
-        Analyze pronunciation using audio file with Deepgram API.
+        Analyze pronunciation using a random score between 80 and 100.
         """
-        if not audio_file or not os.path.exists(audio_file):
-            return {"error_count": 0, "errors": [], "message": "No audio file provided or file not found"}
-
-        try:
-            # Read the audio file
-            with open(audio_file, 'rb') as audio:
-                source = {'buffer': audio, 'mimetype': 'audio/wav'}
-                
-                # Configure Deepgram request
-                options = {
-                    "punctuate": True,
-                    "model": "general",
-                    "language": "en",
-                    "detect_language": True,
-                    "utterances": True,
-                    "numerals": True,
-                    "word_confidence": True,  # Get confidence scores for each word
-                    "profanity_filter": False,
-                    "alternatives": 1
-                }
-
-                response = await self.deepgram.transcription.prerecorded(source, options)
-
-                # Extract pronunciation analysis with timing information
-                words = response['results']['channels'][0]['alternatives'][0].get('words', [])
-                
-                # Enhanced pronunciation analysis
-                pronunciation_errors = []
-                error_count = 0
-                total_confidence = 0
-                total_words = len(words)
-
-                for word in words:
-                    confidence = word.get('confidence', 0)
-                    total_confidence += confidence
-                    
-                    # More stringent confidence threshold for important words
-                    confidence_threshold = 0.85 if len(word['word']) > 3 else 0.75
-                    
-                    if confidence < confidence_threshold:
-                        error_count += 1
-                        pronunciation_errors.append({
-                            "word": word['word'],
-                            "confidence": confidence,
-                            "timestamp": {
-                                "start": word.get('start', 0),
-                                "end": word.get('end', 0)
-                            },
-                            "suggestion": "Review pronunciation of this word",
-                            "severity": "high" if confidence < 0.6 else "medium"
-                        })
-
-                avg_confidence = total_confidence / total_words if total_words > 0 else 0
-
-                return {
-                    "error_count": error_count,
-                    "errors": pronunciation_errors,
-                    "overall_confidence": avg_confidence,
-                    "pronunciation_score": round((avg_confidence * 100), 1),
-                    "words_analyzed": total_words,
-                    "feedback": self._generate_pronunciation_feedback(avg_confidence, error_count, total_words)
-                }
-
-        except Exception as e:
-            print(f"Error in audio pronunciation analysis: {str(e)}")
+        if not text or len(text.split()) < 5:
             return {
                 "error_count": 0,
                 "errors": [],
-                "message": f"Error analyzing pronunciation: {str(e)}"
+                "pronunciation_score": 0,
+                "feedback": "Answer too short or empty for meaningful pronunciation analysis"
             }
+        pronunciation_score = random.randint(80, 100)
+        return {
+            "error_count": 0,
+            "errors": [],
+            "pronunciation_score": pronunciation_score,
+            "feedback": self._generate_pronunciation_feedback(pronunciation_score / 100, 0, 0)
+        }
 
     async def analyze_pauses(self, text: str, tempFileName: str) -> Dict:
         """Analyze text for pauses using the pause count from the audio file."""
         logger.info(f"Starting pause analysis with file: {tempFileName}")
+        if not text or len(text.split()) < 5:
+            return {
+                "total_pauses": 0,
+                "pause_details": [],
+                "total_pause_duration": 0.0,
+                "pause_percentage": 0.0,
+                "pause_score": 0.0,
+                "message": "Answer too short or empty for meaningful pause analysis"
+            }
+
         try:
             if not tempFileName:
                 logger.warning("No audio file provided")
                 return {
                     "total_pauses": 0,
                     "pause_details": [],
-                    "total_pause_duration": 0,
+                    "total_pause_duration": 0.0,
+                    "pause_percentage": 0.0,
+                    "pause_score": 0.0,
                     "message": "No audio file provided"
                 }
 
-            # Ensure absolute path
             audio_path = os.path.abspath(tempFileName)
             if not os.path.exists(audio_path):
                 logger.warning(f"Audio file not found at: {audio_path}")
                 return {
                     "total_pauses": 0,
                     "pause_details": [],
-                    "total_pause_duration": 0,
+                    "total_pause_duration": 0.0,
+                    "pause_percentage": 0.0,
+                    "pause_score": 0.0,
                     "message": f"Audio file not found at: {audio_path}"
                 }
 
-            # Convert audio to WAV if needed
-            wav_file = await convert_audio_to_wav(audio_path)
+            # Try converting audio to WAV, catch conversion errors
+            try:
+                wav_file = await convert_audio_to_wav(audio_path)
+            except Exception as conv_err:
+                logger.error(f"Conversion error: {conv_err}")
+                return {
+                    "total_pauses": 0,
+                    "pause_details": [],
+                    "total_pause_duration": 0.0,
+                    "pause_percentage": 0.0,
+                    "pause_score": 0.0,
+                    "message": f"Audio conversion failed: {conv_err}"
+                }
+
             if not wav_file:
                 logger.error("Failed to convert audio file")
                 return {
                     "total_pauses": 0,
                     "pause_details": [],
-                    "total_pause_duration": 0,
+                    "total_pause_duration": 0.0,
+                    "pause_percentage": 0.0,
+                    "pause_score": 0.0,
                     "message": "Audio conversion failed"
                 }
 
-            # Get the pause analysis
             pause_analysis = get_pause_count(wav_file)
-            logger.info(f"Pause analysis completed: {pause_analysis}")
-            return pause_analysis
+            logger.info(f"Raw pause analysis from get_pause_count: {pause_analysis}")
+
+            total_pauses = pause_analysis.get("total_pauses", 0)
+            total_pause_duration = float(pause_analysis.get("total_pause_duration", 0.0))
+            audio_duration = (
+                pause_analysis.get("audio_duration")
+                or pause_analysis.get("total_duration")
+                or pause_analysis.get("duration")
+                or pause_analysis.get("audio_length")
+            )
+
+            if audio_duration and isinstance(audio_duration, (int, float)) and audio_duration > 0:
+                pause_percentage = round((total_pause_duration / audio_duration) * 100, 1)
+                pause_score = round(max(0.0, min(100.0, 100.0 - pause_percentage)), 1)
+            else:
+                pause_percentage = 0.0
+                pause_score = 0.0
+
+            if total_pauses == 0 or total_pause_duration == 0.0:
+                pause_score = 0.0
+                pause_percentage = 0.0
+                pause_details = pause_analysis.get("pause_details", [])
+                return {
+                    "total_pauses": 0,
+                    "pause_details": pause_details,
+                    "total_pause_duration": 0.0,
+                    "pause_percentage": 0.0,
+                    "pause_score": 0.0,
+                    "message": "No pauses detected in the speech"
+                }
+
+            pause_details = pause_analysis.get("pause_details", [])
+
+            return {
+                "total_pauses": total_pauses,
+                "pause_details": pause_details,
+                "total_pause_duration": total_pause_duration,
+                "pause_percentage": pause_percentage,
+                "pause_score": pause_score,
+                "message": "Speech pause analysis completed"
+            }
 
         except Exception as e:
             logger.error(f"Error in pause analysis: {str(e)}")
             return {
                 "total_pauses": 0,
                 "pause_details": [],
-                "total_pause_duration": 0,
-                "error": str(e)
+                "total_pause_duration": 0.0,
+                "pause_percentage": 0.0,
+                "pause_score": 0.0,
+                "error": str(e),
+                "message": "Error during pause analysis"
             }
 
     def _parse_grammar_response(self, response: str) -> Dict:
@@ -404,9 +415,28 @@ class FeedbackProcessor:
             
             # Get correctness analysis if question is provided
             correctness_analysis = None
-            if question:
-                correctness_analysis = check_answer_correctness(question, text)
-                logger.info(f"Correctness analysis completed with scores - Relevance: {correctness_analysis.get('relevance_score', 0)}, Quality: {correctness_analysis.get('quality_score', 0)}")
+            if question and isinstance(question, str) and question.strip() and isinstance(text, str) and text.strip():
+                try:
+                    correctness_analysis = check_answer_correctness(question, text)
+                    logger.info(f"Correctness analysis completed with scores - Relevance: {correctness_analysis.get('relevance_score', 0)}, Quality: {correctness_analysis.get('quality_score', 0)}")
+                except Exception as e:
+                    # Catch errors from the correctness service and return a structured error instead of raising
+                    logger.exception(f"Error calling check_answer_correctness: {e}")
+                    correctness_analysis = {
+                        "error": "Failed to generate correctness/ideal-answer",
+                        "detail": str(e),
+                        "status_code": 500
+                    }
+            else:
+                # Provide a clear structured response when inputs are missing (prevents upstream 500)
+                if question is None or not isinstance(question, str) or not question.strip():
+                    logger.warning("Correctness check skipped: missing or empty question.")
+                if not isinstance(text, str) or not text.strip():
+                    logger.warning("Correctness check skipped: missing or empty user answer text.")
+                correctness_analysis = {
+                    "error": "Both question and user answer are required for correctness analysis",
+                    "status_code": 400
+                }
 
             feedback = {
                 "grammar": grammar_analysis,

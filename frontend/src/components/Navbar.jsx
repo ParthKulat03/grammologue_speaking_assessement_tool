@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Menu, X, User} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { GithubOutlined } from "@ant-design/icons";
+// import { GithubOutlined } from "@ant-design/icons"; // commented out — GitHub icon removed
 import Profile from "./Profile";
 
 function Navbar(props) {
@@ -54,14 +54,16 @@ function Navbar(props) {
 
           {props.isUserAuthenticated && (
             <div className="hidden md:flex items-center space-x-6">
-          <motion.button
-            whileHover={{ scale: 1.1, rotate: 5 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleGithubClick}
-            className="text-gray-700 hover:text-brand-blue transition-colors"
-          >
-            <GithubOutlined style={{ fontSize: '28px' }} />
-          </motion.button>
+{/* 
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleGithubClick}
+              className="text-gray-700 hover:text-brand-blue transition-colors"
+            >
+              <GithubOutlined style={{ fontSize: '28px' }} />
+            </motion.button>
+*/}
               <Profile />
             </div>
           )}
@@ -105,6 +107,7 @@ function Navbar(props) {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center space-y-4">
+{/* 
                     <motion.button
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       whileTap={{ scale: 0.95 }}
@@ -113,6 +116,7 @@ function Navbar(props) {
                     >
                       <GitHub size={28} />
                     </motion.button>
+*/}
                     <Profile />
                   </div>
                 )}

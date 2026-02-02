@@ -21,14 +21,25 @@ export const fastApi = axios.create({
 // Function to get ideal answer and analysis
 export const getIdealAnswer = async (question, answer) => {
   try {
+    console.log("Calling getIdealAnswer with:", { question, answer });
+    
     const response = await fastApi.post('/get-ideal-answer', {
       question,
       answer
     });
-    console.log("IDEAL ANSWER::::::::",response.data);
-    return response.data;
+    
+    console.log("getIdealAnswer raw response:", response);
+    console.log("getIdealAnswer response.data:", response.data);
+    
+    // Ensure we return the full response structure
+    if (response.data.status === "success" && response.data.data) {
+      return response.data;  // ✅ Return {status, data}
+    }
+    
+    throw new Error("Invalid response structure from ideal answer endpoint");
+    
   } catch (error) {
-    console.error('Error getting ideal answer:', error);
+    console.error('Error getting ideal answer:', error.response?.data || error.message);
     throw error;
   }
 };

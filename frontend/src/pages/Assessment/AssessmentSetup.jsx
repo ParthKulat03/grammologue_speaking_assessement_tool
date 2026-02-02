@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Settings,
+  // Settings, // commented out per request (remove Settings from frontend)
   BookOpen,
   BarChart3,
   List,
@@ -46,16 +46,16 @@ function AssessmentSetup() {
   const questionTypes = [
     { id: 'general', label: 'General Conversation', icon: BookOpen, description: 'Everyday communication scenarios' },
     { id: 'business', label: 'Business English', icon: BarChart3, description: 'Professional workplace contexts' },
-    { id: 'academic', label: 'Academic English', icon: Settings, description: 'Educational and research settings' },
+    // { id: 'academic', label: 'Academic English', icon: Settings, description: 'Educational and research settings' }, // commented out (Settings removed)
     { id: 'custom', label: 'Custom Type', icon: Plus, description: 'Create your own category' },
   ];
 
   const topics = [
     { id: 'daily_life', label: 'Daily Life', icon: Lightbulb },
     { id: 'work', label: 'Work & Career', icon: BarChart3 },
-    { id: 'travel', label: 'Travel & Culture', icon: Settings },
-    { id: 'technology', label: 'Technology', icon: Settings },
-    { id: 'environment', label: 'Environment', icon: Settings },
+    // { id: 'travel', label: 'Travel & Culture', icon: Settings }, // commented out (Settings removed)
+    // { id: 'technology', label: 'Technology', icon: Settings }, // commented out (Settings removed)
+    // { id: 'environment', label: 'Environment', icon: Settings }, // commented out (Settings removed)
     { id: 'education', label: 'Education', icon: BookOpen },
     { id: 'custom', label: 'Custom Topic', icon: Plus },
   ];

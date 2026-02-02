@@ -2,7 +2,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 
-def detect_pauses(audio_path, threshold_seconds=1, amplitude_threshold=0.01):
+def detect_pauses(audio_path, threshold_seconds=2, amplitude_threshold=0.01):
     """
     Detect pauses in an audio file.
     

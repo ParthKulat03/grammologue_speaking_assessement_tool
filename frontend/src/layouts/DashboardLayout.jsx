@@ -13,12 +13,12 @@ function DashboardLayout() {
   // Navigation configuration with icons and routes
   const sidebarLinks = [
     { icon: <Home size={20} />, label: "Overview", path: "/dashboard" },
-    {
-      icon: <FileText size={20} />,
-      label: "Reports",
-      path: "/dashboard/reports",
-    },
-    { icon: <Settings size={20} />, label: "Settings", path: "/" },
+    // {
+    //   icon: <FileText size={20} />,
+    //   label: "Reports",
+    //   path: "/dashboard/reports",
+    // },
+    // { icon: <Settings size={20} />, label: "Settings", path: "/" },
   ];
 
   // Toggle sidebar expansion state

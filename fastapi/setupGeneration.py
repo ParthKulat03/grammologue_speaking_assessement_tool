@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from turtle import setup
 from typing import Dict, List
 from groq import Groq
 from pydantic import BaseModel
@@ -97,7 +98,7 @@ def extract_questions_from_text(text: str, num_questions: int) -> List[str]:
 
 def generate_questions(setup: AssessmentSetup) -> List[str]:
     client = Groq(
-        api_key="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",
+        api_key="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",
     )
 
     prompt = generate_prompt(setup)
